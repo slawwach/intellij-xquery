@@ -293,4 +293,9 @@ public class XQueryFile extends PsiFileBase {
 
         return namespaceMapping;
     }
+
+    public boolean isLibraryModule() {
+        XQueryModuleDecl moduleDecl = PsiTreeUtil.findChildOfType(this, XQueryModuleDecl.class);
+        return moduleDecl != null;
+    }
 }

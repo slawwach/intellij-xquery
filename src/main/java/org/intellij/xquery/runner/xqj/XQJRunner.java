@@ -29,14 +29,14 @@ public class XQJRunner {
 
     public static void main(String[] args) throws XQException, FileNotFoundException, ClassNotFoundException,
             IllegalAccessException, InstantiationException {
-        Class dsClass = Class.forName("net.xqj.marklogic.MarkLogicXQDataSource");
-//        Class dsClass = Class.forName("net.sf.saxon.xqj.SaxonXQDataSource");
+//        Class dsClass = Class.forName("net.xqj.marklogic.MarkLogicXQDataSource");
+        Class dsClass = Class.forName("net.sf.saxon.xqj.SaxonXQDataSource");
         XQDataSource xqs = (XQDataSource) dsClass.newInstance();
-        xqs.setProperty("serverName", "localhost");
-        xqs.setProperty("port", "8003");
+//        xqs.setProperty("serverName", "localhost");
+//        xqs.setProperty("port", "8003");
 
-        XQConnection conn = xqs.getConnection("admin", "admin");
-//        XQConnection conn = xqs.getConnection();
+//        XQConnection conn = xqs.getConnection("admin", "admin");
+        XQConnection conn = xqs.getConnection();
 
         XQPreparedExpression xqpe = conn.prepareExpression(new FileInputStream(args[0]));
 

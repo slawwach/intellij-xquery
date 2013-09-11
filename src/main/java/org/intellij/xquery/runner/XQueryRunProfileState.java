@@ -64,13 +64,14 @@ public class XQueryRunProfileState extends CommandLineState {
         String filename = configuration.getMainModuleFilename();
         String directory = new File(filename).getParent();
         String java = FileUtil.toSystemDependentName("java");
+        String classpathSeparator = File.separatorChar == '/' ? ":" : ";";
 
         final GeneralCommandLine commandLine = new GeneralCommandLine();
         commandLine.setWorkDirectory(directory);
         commandLine.setExePath(java);
         commandLine.addParameters("-cp");
-        commandLine.addParameters("/opt/dev/marklogic/*:"+getJarPath());
-//        commandLine.addParameters("/opt/dev/saxon/*:"+getJarPath());
+//        commandLine.addParameters("/opt/dev/marklogic/*:"+getJarPath());
+        commandLine.addParameters("D:/dev/lib/saxon/*" + classpathSeparator  +getJarPath());
         commandLine.addParameters("org.intellij.xquery.runner.xqj.XQJRunner");
         commandLine.addParameters(filename);
 
@@ -84,6 +85,8 @@ public class XQueryRunProfileState extends CommandLineState {
         Class thisClass = this.getClass();
         String fileInDirectory = '/' + thisClass.getName().replace('.', '/') + ".class";
         URL location = thisClass.getResource(fileInDirectory);
-        return location.toString().replaceFirst("file:", "").replaceFirst(fileInDirectory, "");
+        String locationAsString = location.toString();
+        locationAsString = File.separatorChar == '/' ? locationAsString.replaceFirst("file:", "") : locationAsString.replaceFirst("file:/", "");
+        return locationAsString.replaceFirst(fileInDirectory, "");
     }
 }

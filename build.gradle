@@ -42,6 +42,8 @@ sourceSets {
             srcDirs 'gen'
         }
         compileClasspath += configurations.provided
+        test.compileClasspath += configurations.provided
+        test.runtimeClasspath += configurations.provided
     }
 }
 
@@ -61,7 +63,7 @@ repositories {
 }
 
 dependencies {
-    compile fileTree(dir: project.ext.ideaInstallationPath + '/lib', include: '*.jar')
+    provided fileTree(dir: project.ext.ideaInstallationPath + '/lib', include: '*.jar')
     provided files("${System.properties['java.home']}/../lib/tools.jar")
     compile 'javax.xml.xquery:xqj-api:1.0'
 }
@@ -77,8 +79,8 @@ task performanceTest(type: Test) {
 
 metaInf << files('/META-INF/plugin.xml')
 
-tasks.withType(Compile) { 
-    options.compilerArgs << "-Xlint:unchecked" 
+tasks.withType(Compile) {
+    options.compilerArgs << "-Xlint:unchecked"
 }
 
 task downloadSdk(type: DownloadTask) {
@@ -104,4 +106,10 @@ class DownloadTask extends DefaultTask {
     void download() {
         ant.get(src: sourceUrl, dest: target)
     }
+}
+
+task dist(type: Zip) {
+    from jar.outputs.files
+    from configurations.runtime
+    into('intellij-xquery/lib')
 }

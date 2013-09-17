@@ -16,6 +16,7 @@
 
 package org.intellij.xquery.runner;
 
+import com.intellij.execution.CantRunException;
 import com.intellij.execution.ExecutionException;
 import com.intellij.execution.configurations.CommandLineState;
 import com.intellij.execution.configurations.GeneralCommandLine;
@@ -24,6 +25,10 @@ import com.intellij.execution.filters.TextConsoleBuilderFactory;
 import com.intellij.execution.process.OSProcessHandler;
 import com.intellij.execution.process.ProcessHandler;
 import com.intellij.execution.runners.ExecutionEnvironment;
+import com.intellij.ide.plugins.IdeaPluginDescriptor;
+import com.intellij.ide.plugins.PluginManager;
+import com.intellij.openapi.application.ex.ApplicationManagerEx;
+import com.intellij.openapi.extensions.PluginId;
 import com.intellij.openapi.util.io.FileUtil;
 import org.jetbrains.annotations.NotNull;
 
@@ -58,20 +63,19 @@ public class XQueryRunProfileState extends CommandLineState {
         return new OSProcessHandler(commandLine.createProcess(), commandLine.getCommandLineString());
     }
 
-    private GeneralCommandLine getCommand() throws IOException, URISyntaxException {
+    private GeneralCommandLine getCommand() throws IOException, URISyntaxException, CantRunException {
         XQueryRunConfiguration configuration = (XQueryRunConfiguration) getEnvironment()
                 .getRunnerAndConfigurationSettings().getConfiguration();
         String filename = configuration.getMainModuleFilename();
         String directory = new File(filename).getParent();
         String java = FileUtil.toSystemDependentName("java");
-        String classpathSeparator = File.separatorChar == '/' ? ":" : ";";
 
         final GeneralCommandLine commandLine = new GeneralCommandLine();
         commandLine.setWorkDirectory(directory);
         commandLine.setExePath(java);
         commandLine.addParameters("-cp");
 //        commandLine.addParameters("/opt/dev/marklogic/*:"+getJarPath());
-        commandLine.addParameters("D:/dev/lib/saxon/*" + classpathSeparator  +getJarPath());
+        commandLine.addParameters("D:/dev/lib/saxon/*" + File.pathSeparator + getJarPath());
         commandLine.addParameters("org.intellij.xquery.runner.xqj.XQJRunner");
         commandLine.addParameters(filename);
 
@@ -81,12 +85,24 @@ public class XQueryRunProfileState extends CommandLineState {
         return commandLine;
     }
 
-    private String getJarPath() throws URISyntaxException, IOException {
-        Class thisClass = this.getClass();
-        String fileInDirectory = '/' + thisClass.getName().replace('.', '/') + ".class";
-        URL location = thisClass.getResource(fileInDirectory);
-        String locationAsString = location.toString();
-        locationAsString = File.separatorChar == '/' ? locationAsString.replaceFirst("file:", "") : locationAsString.replaceFirst("file:/", "");
-        return locationAsString.replaceFirst(fileInDirectory, "");
+    private String getJarPath() throws URISyntaxException, IOException, CantRunException {
+        final PluginId pluginId = PluginManager.getPluginByClassName(getClass().getName());
+        assert pluginId != null;
+        final IdeaPluginDescriptor descriptor = PluginManager.getPlugin(pluginId);
+        assert descriptor != null;
+
+        File pluginPath = descriptor.getPath();
+        final char c = File.separatorChar;
+        File rtClasspath = new File(pluginPath, "lib" + c + "intellij-xquery-rt.jar");
+        if (!rtClasspath.exists()) {
+            if (!(rtClasspath = new File(pluginPath, "classes")).exists()) {
+                if (ApplicationManagerEx.getApplicationEx().isInternal() && new File(pluginPath, "org").exists()) {
+                    rtClasspath = pluginPath;
+                } else {
+                    throw new CantRunException("Runtime classes not found");
+                }
+            }
+        }
+        return rtClasspath.getAbsolutePath();
     }
 }

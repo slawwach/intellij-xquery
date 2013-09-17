@@ -57,7 +57,6 @@ public class XQueryRunConfigurationProducer extends RuntimeConfigurationProducer
         final VirtualFile vFile = containingFile.getVirtualFile();
         if (vFile == null) return null;
         RunnerAndConfigurationSettings settings = prepareSettings(context, psiElement.getProject(), vFile);
-
         return settings;
     }
 
@@ -70,6 +69,7 @@ public class XQueryRunConfigurationProducer extends RuntimeConfigurationProducer
         XQueryRunConfiguration configuration = (XQueryRunConfiguration) settings.getConfiguration();
         configuration.setMainModuleFilename(vFile.getCanonicalPath());
         configuration.setName(vFile.getNameWithoutExtension());
+        settings.setEditBeforeRun(true);
         return settings;
     }
 

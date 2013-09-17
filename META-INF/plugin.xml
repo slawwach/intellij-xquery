@@ -56,9 +56,6 @@
     <project-components>
     </project-components>
 
-    <actions>
-    </actions>
-
     <extensions defaultExtensionNs="com.intellij">
         <fileTypeFactory implementation="org.intellij.xquery.XQueryFileTypeFactory"/>
         <lang.parserDefinition language="XQuery" implementationClass="org.intellij.xquery.parser.XQueryParserDefinition"/>

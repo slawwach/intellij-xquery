@@ -38,6 +38,6 @@ public class XQueryRunConfigurationFactory extends ConfigurationFactory {
 
     @Override
     public RunConfiguration createTemplateConfiguration(Project project) {
-        return new XQueryRunConfiguration(project, this, name);
+        return new XQueryRunConfiguration(name, new XQueryModuleBasedConfiguration(project), this);
     }
 }

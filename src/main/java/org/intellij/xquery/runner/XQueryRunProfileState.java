@@ -18,74 +18,61 @@ package org.intellij.xquery.runner;
 
 import com.intellij.execution.CantRunException;
 import com.intellij.execution.ExecutionException;
-import com.intellij.execution.configurations.CommandLineState;
-import com.intellij.execution.configurations.GeneralCommandLine;
-import com.intellij.execution.filters.TextConsoleBuilder;
-import com.intellij.execution.filters.TextConsoleBuilderFactory;
-import com.intellij.execution.process.OSProcessHandler;
-import com.intellij.execution.process.ProcessHandler;
+import com.intellij.execution.configurations.JavaCommandLineState;
+import com.intellij.execution.configurations.JavaParameters;
+import com.intellij.execution.configurations.RunConfigurationModule;
 import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.ide.plugins.IdeaPluginDescriptor;
 import com.intellij.ide.plugins.PluginManager;
 import com.intellij.openapi.application.ex.ApplicationManagerEx;
 import com.intellij.openapi.extensions.PluginId;
-import com.intellij.openapi.util.io.FileUtil;
-import org.jetbrains.annotations.NotNull;
+import com.intellij.openapi.project.Project;
+import com.intellij.openapi.projectRoots.JdkUtil;
+import com.intellij.openapi.projectRoots.Sdk;
+import com.intellij.openapi.projectRoots.ex.PathUtilEx;
 
 import java.io.File;
-import java.io.IOException;
-import java.net.URISyntaxException;
-import java.net.URL;
 
 /**
  * User: ligasgr
  * Date: 04/08/13
  * Time: 22:40
  */
-public class XQueryRunProfileState extends CommandLineState {
+public class XQueryRunProfileState extends JavaCommandLineState {
 
-    protected XQueryRunProfileState(ExecutionEnvironment environment) {
+    private XQueryRunConfiguration myConfiguration;
+
+    protected XQueryRunProfileState(ExecutionEnvironment environment, XQueryRunConfiguration runConfiguration) {
         super(environment);
+        myConfiguration = runConfiguration;
     }
 
-    @NotNull
     @Override
-    protected ProcessHandler startProcess() throws ExecutionException {
-        GeneralCommandLine commandLine = null;
-        try {
-            commandLine = getCommand();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (URISyntaxException e) {
-            e.printStackTrace();
-        }
+    protected JavaParameters createJavaParameters() throws ExecutionException {
+        final JavaParameters parameters = new JavaParameters();
+        final RunConfigurationModule module = myConfiguration.getConfigurationModule();
+        if (module == null) throw CantRunException.noModuleConfigured(module.getModuleName());
 
-        return new OSProcessHandler(commandLine.createProcess(), commandLine.getCommandLineString());
+        Project project = module.getProject();
+        Sdk sdk = PathUtilEx.getAnyJdk(project);
+        if (sdk == null)
+            throw CantRunException.noJdkConfigured();
+        parameters.setJdk(sdk);
+        parameters.setMainClass("org.intellij.xquery.runner.xqj.XQJRunner");
+        parameters.getProgramParametersList().add(myConfiguration.getMainModuleFilename());
+        parameters.getClassPath().addTail(getRtJarPath());
+        parameters.setWorkingDirectory(new File(myConfiguration.getMainModuleFilename()).getParentFile().getAbsolutePath());
+        parameters.setUseDynamicClasspath(JdkUtil.useDynamicClasspath(myConfiguration.getProject()));
+
+        if (module.getModule() != null)
+            parameters.configureByModule(module.getModule(), JavaParameters.CLASSES_ONLY, sdk);
+        else
+            parameters.configureByProject(module.getProject(), JavaParameters.CLASSES_ONLY, sdk);
+
+        return parameters;
     }
 
-    private GeneralCommandLine getCommand() throws IOException, URISyntaxException, CantRunException {
-        XQueryRunConfiguration configuration = (XQueryRunConfiguration) getEnvironment()
-                .getRunnerAndConfigurationSettings().getConfiguration();
-        String filename = configuration.getMainModuleFilename();
-        String directory = new File(filename).getParent();
-        String java = FileUtil.toSystemDependentName("java");
-
-        final GeneralCommandLine commandLine = new GeneralCommandLine();
-        commandLine.setWorkDirectory(directory);
-        commandLine.setExePath(java);
-        commandLine.addParameters("-cp");
-//        commandLine.addParameters("/opt/dev/marklogic/*:"+getJarPath());
-        commandLine.addParameters("D:/dev/lib/saxon/*" + File.pathSeparator + getJarPath());
-        commandLine.addParameters("org.intellij.xquery.runner.xqj.XQJRunner");
-        commandLine.addParameters(filename);
-
-        final TextConsoleBuilder consoleBuilder = TextConsoleBuilderFactory.getInstance().createBuilder
-                (getEnvironment().getProject());
-        setConsoleBuilder(consoleBuilder);
-        return commandLine;
-    }
-
-    private String getJarPath() throws URISyntaxException, IOException, CantRunException {
+    private String getRtJarPath() throws CantRunException {
         final PluginId pluginId = PluginManager.getPluginByClassName(getClass().getName());
         assert pluginId != null;
         final IdeaPluginDescriptor descriptor = PluginManager.getPlugin(pluginId);

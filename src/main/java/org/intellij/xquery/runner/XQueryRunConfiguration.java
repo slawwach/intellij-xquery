@@ -19,8 +19,11 @@ package org.intellij.xquery.runner;
 import com.intellij.execution.ExecutionException;
 import com.intellij.execution.Executor;
 import com.intellij.execution.configurations.*;
+import com.intellij.execution.filters.TextConsoleBuilderFactory;
 import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.execution.runners.ProgramRunner;
+import com.intellij.openapi.module.Module;
+import com.intellij.openapi.module.ModuleManager;
 import com.intellij.openapi.options.SettingsEditor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.InvalidDataException;
@@ -31,47 +34,22 @@ import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Arrays;
+import java.util.Collection;
+
 /**
  * User: ligasgr
  * Date: 04/08/13
  * Time: 14:56
  */
-public class XQueryRunConfiguration extends RunConfigurationBase implements
+public class XQueryRunConfiguration extends ModuleBasedConfiguration<XQueryModuleBasedConfiguration> implements
         RunConfigurationWithSuppressedDefaultDebugAction, LocatableConfiguration {
 
     private static final String UNNAMED_NAME = "unnamed";
     private String mainModuleFilename;
 
-    public XQueryRunConfiguration(Project project, ConfigurationFactory factory, String name) {
-        super(project, factory, name);
-    }
-
-    @Override
-    public SettingsEditor<? extends RunConfiguration> getConfigurationEditor() {
-        return new XQueryMainModuleRunConfigurationEditorForm();
-    }
-
-    @Nullable
-    @Override
-    public JDOMExternalizable createRunnerSettings(ConfigurationInfoProvider provider) {
-        return null;
-    }
-
-    @Nullable
-    @Override
-    public SettingsEditor<JDOMExternalizable> getRunnerSettingsEditor(ProgramRunner runner) {
-        return null;
-    }
-
-    @Nullable
-    @Override
-    public RunProfileState getState(@NotNull Executor executor, @NotNull ExecutionEnvironment env) throws
-            ExecutionException {
-        return new XQueryRunProfileState(env);
-    }
-
-    @Override
-    public void checkConfiguration() throws RuntimeConfigurationException {
+    public XQueryRunConfiguration(String name, XQueryModuleBasedConfiguration configurationModule, ConfigurationFactory factory) {
+        super(name, configurationModule, factory);
     }
 
     public String getMainModuleFilename() {
@@ -88,18 +66,33 @@ public class XQueryRunConfiguration extends RunConfigurationBase implements
         XmlSerializer.serializeInto(this, element);
     }
 
+    @Override
+    protected ModuleBasedConfiguration createInstance() {
+        return new XQueryRunConfiguration(getName(), new XQueryModuleBasedConfiguration(getProject()), XQueryRunConfigurationType.getInstance().getConfigurationFactories()[0]);
+    }
+
+    @Override
+    public Collection<Module> getValidModules() {
+        Module[] modules = ModuleManager.getInstance(getProject()).getModules();
+        return Arrays.asList(modules);
+    }
+
     public void readExternal(final Element element) throws InvalidDataException {
         super.readExternal(element);
         XmlSerializer.deserializeInto(this, element);
     }
 
     @Override
-    public boolean isGeneratedName() {
-        return UNNAMED_NAME.equals(getName());
+    public SettingsEditor<? extends RunConfiguration> getConfigurationEditor() {
+        return new XQueryMainModuleRunConfigurationEditorForm();
     }
 
+    @Nullable
     @Override
-    public String suggestedName() {
-        return UNNAMED_NAME;
+    public RunProfileState getState(@NotNull Executor executor, @NotNull ExecutionEnvironment env) throws ExecutionException {
+        XQueryRunProfileState state = new XQueryRunProfileState(env, (XQueryRunConfiguration) env.getRunnerAndConfigurationSettings().getConfiguration());
+        XQueryModuleBasedConfiguration module = getConfigurationModule();
+        state.setConsoleBuilder(TextConsoleBuilderFactory.getInstance().createBuilder(getProject(), module.getSearchScope()));
+        return state;
     }
 }

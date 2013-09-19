@@ -19,7 +19,10 @@ package org.intellij.xquery.runner;
 import com.intellij.execution.Location;
 import com.intellij.execution.RunnerAndConfigurationSettings;
 import com.intellij.execution.actions.ConfigurationContext;
+import com.intellij.execution.configurations.ModuleBasedConfiguration;
+import com.intellij.execution.impl.RunManagerImpl;
 import com.intellij.execution.junit.RuntimeConfigurationProducer;
+import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiElement;
@@ -67,8 +70,9 @@ public class XQueryRunConfigurationProducer extends RuntimeConfigurationProducer
     private RunnerAndConfigurationSettings prepareSettings(ConfigurationContext context, Project project, VirtualFile vFile) {
         RunnerAndConfigurationSettings settings = cloneTemplateConfiguration(project, context);
         XQueryRunConfiguration configuration = (XQueryRunConfiguration) settings.getConfiguration();
-        configuration.setMainModuleFilename(vFile.getCanonicalPath());
+        configuration.MAIN_FILE_NAME = vFile.getCanonicalPath();
         configuration.setName(vFile.getNameWithoutExtension());
+        setupConfigurationModule(context, configuration);
         settings.setEditBeforeRun(true);
         return settings;
     }
@@ -76,5 +80,31 @@ public class XQueryRunConfigurationProducer extends RuntimeConfigurationProducer
     @Override
     public int compareTo(Object o) {
         return PREFERED;
+    }
+
+    private void setupConfigurationModule(@Nullable ConfigurationContext context, ModuleBasedConfiguration configuration) {
+        if (context != null) {
+            final RunnerAndConfigurationSettings template =
+                    ((RunManagerImpl) context.getRunManager()).getConfigurationTemplate(getConfigurationFactory());
+            final Module contextModule = context.getModule();
+            final Module predefinedModule = ((ModuleBasedConfiguration) template.getConfiguration()).getConfigurationModule().getModule();
+            if (predefinedModule != null) {
+                configuration.setModule(predefinedModule);
+                return;
+            }
+            final Module module = findModule(configuration, contextModule);
+            if (module != null) {
+                configuration.setModule(module);
+                return;
+            }
+        }
+        return;
+    }
+
+    protected Module findModule(ModuleBasedConfiguration configuration, Module contextModule) {
+        if (configuration.getConfigurationModule().getModule() == null && contextModule != null) {
+            return contextModule;
+        }
+        return null;
     }
 }

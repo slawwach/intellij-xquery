@@ -58,10 +58,10 @@ public class XQueryRunProfileState extends JavaCommandLineState {
         if (sdk == null)
             throw CantRunException.noJdkConfigured();
         parameters.setJdk(sdk);
-        parameters.setMainClass("org.intellij.xquery.runner.xqj.XQJRunner");
-        parameters.getProgramParametersList().add(myConfiguration.getMainModuleFilename());
+        parameters.setMainClass(myConfiguration.getRunClass());
+        parameters.getProgramParametersList().add(myConfiguration.MAIN_FILE_NAME);
         parameters.getClassPath().addTail(getRtJarPath());
-        parameters.setWorkingDirectory(new File(myConfiguration.getMainModuleFilename()).getParentFile().getAbsolutePath());
+        parameters.setWorkingDirectory(new File(myConfiguration.WORKING_DIRECTORY).getParentFile().getAbsolutePath());
         parameters.setUseDynamicClasspath(JdkUtil.useDynamicClasspath(myConfiguration.getProject()));
 
         if (module.getModule() != null)

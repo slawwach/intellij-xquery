@@ -16,20 +16,21 @@
 
 package org.intellij.xquery.runner;
 
-import com.intellij.execution.CommonJavaRunConfigurationParameters;
-import com.intellij.execution.ExecutionBundle;
-import com.intellij.execution.ExecutionException;
-import com.intellij.execution.Executor;
+import com.intellij.execution.*;
+import com.intellij.execution.configuration.EnvironmentVariablesComponent;
 import com.intellij.execution.configurations.*;
 import com.intellij.execution.filters.TextConsoleBuilderFactory;
 import com.intellij.execution.runners.ExecutionEnvironment;
+import com.intellij.execution.util.JavaParametersUtil;
+import com.intellij.execution.util.ProgramParametersUtil;
+import com.intellij.openapi.components.PathMacroManager;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleManager;
 import com.intellij.openapi.options.SettingsEditor;
 import com.intellij.openapi.options.SettingsEditorGroup;
+import com.intellij.openapi.util.DefaultJDOMExternalizer;
 import com.intellij.openapi.util.InvalidDataException;
 import com.intellij.openapi.util.WriteExternalException;
-import com.intellij.util.xmlb.XmlSerializer;
 import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -60,11 +61,7 @@ public class XQueryRunConfiguration extends ModuleBasedConfiguration<XQueryModul
 
     public XQueryRunConfiguration(String name, XQueryModuleBasedConfiguration configurationModule, ConfigurationFactory factory) {
         super(name, configurationModule, factory);
-    }
-
-    public void writeExternal(final Element element) throws WriteExternalException {
-        super.writeExternal(element);
-        XmlSerializer.serializeInto(this, element);
+        WORKING_DIRECTORY = getProject().getBasePath();
     }
 
     @Override
@@ -76,11 +73,6 @@ public class XQueryRunConfiguration extends ModuleBasedConfiguration<XQueryModul
     public Collection<Module> getValidModules() {
         Module[] modules = ModuleManager.getInstance(getProject()).getModules();
         return Arrays.asList(modules);
-    }
-
-    public void readExternal(final Element element) throws InvalidDataException {
-        super.readExternal(element);
-        XmlSerializer.deserializeInto(this, element);
     }
 
     @Override
@@ -154,13 +146,13 @@ public class XQueryRunConfiguration extends ModuleBasedConfiguration<XQueryModul
 
     @Override
     public void setWorkingDirectory(@Nullable String value) {
-        WORKING_DIRECTORY = value;
+        WORKING_DIRECTORY = ExternalizablePath.urlValue(value);
     }
 
     @Nullable
     @Override
     public String getWorkingDirectory() {
-        return WORKING_DIRECTORY;
+        return ExternalizablePath.localPathValue(WORKING_DIRECTORY);
     }
 
     public void setPassParentEnvs(boolean passParentEnvs) {
@@ -179,5 +171,33 @@ public class XQueryRunConfiguration extends ModuleBasedConfiguration<XQueryModul
 
     public boolean isPassParentEnvs() {
         return PASS_PARENT_ENVS;
+    }
+
+    @Override
+    public void checkConfiguration() throws RuntimeConfigurationException {
+        JavaParametersUtil.checkAlternativeJRE(this);
+        final RunConfigurationModule configurationModule = getConfigurationModule();
+        configurationModule.checkForWarning();
+        ProgramParametersUtil.checkWorkingDirectoryExist(this, getProject(), configurationModule.getModule());
+        JavaRunConfigurationExtensionManager.checkConfigurationIsValid(this);
+    }
+
+
+    public void readExternal(final Element element) throws InvalidDataException {
+        PathMacroManager.getInstance(getProject()).expandPaths(element);
+        super.readExternal(element);
+        JavaRunConfigurationExtensionManager.getInstance().readExternal(this, element);
+        DefaultJDOMExternalizer.readExternal(this, element);
+        readModule(element);
+        EnvironmentVariablesComponent.readExternal(element, getEnvs());
+    }
+
+    public void writeExternal(final Element element) throws WriteExternalException {
+        super.writeExternal(element);
+        JavaRunConfigurationExtensionManager.getInstance().writeExternal(this, element);
+        DefaultJDOMExternalizer.writeExternal(this, element);
+        writeModule(element);
+        EnvironmentVariablesComponent.writeExternal(element, getEnvs());
+        PathMacroManager.getInstance(getProject()).collapsePathsRecursively(element);
     }
 }

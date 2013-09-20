@@ -17,6 +17,7 @@
 package org.intellij.xquery.runner;
 
 import com.intellij.execution.Location;
+import com.intellij.execution.RunManagerEx;
 import com.intellij.execution.RunnerAndConfigurationSettings;
 import com.intellij.execution.actions.ConfigurationContext;
 import com.intellij.execution.configurations.ModuleBasedConfiguration;
@@ -24,10 +25,12 @@ import com.intellij.execution.impl.RunManagerImpl;
 import com.intellij.execution.junit.RuntimeConfigurationProducer;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.Comparing;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import org.intellij.xquery.psi.XQueryFile;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -35,7 +38,7 @@ import org.jetbrains.annotations.Nullable;
  * Date: 04/08/13
  * Time: 18:57
  */
-public class XQueryRunConfigurationProducer extends RuntimeConfigurationProducer {
+public class XQueryRunConfigurationProducer extends RuntimeConfigurationProducer implements Cloneable {
     private XQueryFile containingFile;
 
     public XQueryRunConfigurationProducer() {
@@ -104,6 +107,34 @@ public class XQueryRunConfigurationProducer extends RuntimeConfigurationProducer
     protected Module findModule(ModuleBasedConfiguration configuration, Module contextModule) {
         if (configuration.getConfigurationModule().getModule() == null && contextModule != null) {
             return contextModule;
+        }
+        return null;
+    }
+
+    @Override
+    protected RunnerAndConfigurationSettings findExistingByElement(Location location,
+                                                                   @NotNull RunnerAndConfigurationSettings[] existingConfigurations,
+                                                                   ConfigurationContext context) {
+        PsiFile psiFile = location.getPsiElement().getContainingFile();
+        if (!(psiFile instanceof XQueryFile)) return null;
+        if (((XQueryFile) psiFile).isLibraryModule()) {
+            return null;
+        }
+        final Module predefinedModule =
+                ((XQueryRunConfiguration) ((RunManagerImpl) RunManagerEx.getInstanceEx(location.getProject()))
+                        .getConfigurationTemplate(getConfigurationFactory())
+                        .getConfiguration()).getConfigurationModule().getModule();
+        for (RunnerAndConfigurationSettings existingConfiguration : existingConfigurations) {
+            final XQueryRunConfiguration appConfiguration = (XQueryRunConfiguration) existingConfiguration.getConfiguration();
+            if (Comparing.equal(psiFile.getVirtualFile().getCanonicalPath(), appConfiguration.MAIN_FILE_NAME)) {
+                final Module configurationModule = appConfiguration.getConfigurationModule().getModule();
+                if (Comparing.equal(location.getModule(), configurationModule)) {
+                    return existingConfiguration;
+                }
+                if (Comparing.equal(predefinedModule, configurationModule)) {
+                    return existingConfiguration;
+                }
+            }
         }
         return null;
     }

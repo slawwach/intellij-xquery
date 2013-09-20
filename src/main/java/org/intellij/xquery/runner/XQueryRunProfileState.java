@@ -22,14 +22,11 @@ import com.intellij.execution.configurations.JavaCommandLineState;
 import com.intellij.execution.configurations.JavaParameters;
 import com.intellij.execution.configurations.RunConfigurationModule;
 import com.intellij.execution.runners.ExecutionEnvironment;
+import com.intellij.execution.util.JavaParametersUtil;
 import com.intellij.ide.plugins.IdeaPluginDescriptor;
 import com.intellij.ide.plugins.PluginManager;
 import com.intellij.openapi.application.ex.ApplicationManagerEx;
 import com.intellij.openapi.extensions.PluginId;
-import com.intellij.openapi.project.Project;
-import com.intellij.openapi.projectRoots.JdkUtil;
-import com.intellij.openapi.projectRoots.Sdk;
-import com.intellij.openapi.projectRoots.ex.PathUtilEx;
 
 import java.io.File;
 
@@ -51,23 +48,15 @@ public class XQueryRunProfileState extends JavaCommandLineState {
     protected JavaParameters createJavaParameters() throws ExecutionException {
         final JavaParameters parameters = new JavaParameters();
         final RunConfigurationModule module = myConfiguration.getConfigurationModule();
-        if (module == null) throw CantRunException.noModuleConfigured(module.getModuleName());
 
-        Project project = module.getProject();
-        Sdk sdk = PathUtilEx.getAnyJdk(project);
-        if (sdk == null)
-            throw CantRunException.noJdkConfigured();
-        parameters.setJdk(sdk);
         parameters.setMainClass(myConfiguration.getRunClass());
-        parameters.getProgramParametersList().add(myConfiguration.MAIN_FILE_NAME);
         parameters.getClassPath().addTail(getRtJarPath());
-        parameters.setWorkingDirectory(new File(myConfiguration.WORKING_DIRECTORY).getParentFile().getAbsolutePath());
-        parameters.setUseDynamicClasspath(JdkUtil.useDynamicClasspath(myConfiguration.getProject()));
+        parameters.getProgramParametersList().add(myConfiguration.MAIN_FILE_NAME);
+        final String jreHome = myConfiguration.ALTERNATIVE_JRE_PATH_ENABLED ? myConfiguration.ALTERNATIVE_JRE_PATH
+                : null;
+        JavaParametersUtil.configureModule(module, parameters, JavaParameters.JDK_AND_CLASSES, jreHome);
+        JavaParametersUtil.configureConfiguration(parameters, myConfiguration);
 
-        if (module.getModule() != null)
-            parameters.configureByModule(module.getModule(), JavaParameters.CLASSES_ONLY, sdk);
-        else
-            parameters.configureByProject(module.getProject(), JavaParameters.CLASSES_ONLY, sdk);
 
         return parameters;
     }
